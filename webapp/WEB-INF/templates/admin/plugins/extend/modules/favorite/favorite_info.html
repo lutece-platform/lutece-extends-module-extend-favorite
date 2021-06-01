@@ -1,8 +1,3 @@
 <#if favorite??>
-	<p>
-		<strong>Favorites:</strong>
-		${favorite.favoriteCount!}
-	</p>
-
-	<br />
+<@p><strong>#i18n{module.extend.favorite.extender.label} : </strong>${favorite.favoriteCount!}</@p>
 </#if>

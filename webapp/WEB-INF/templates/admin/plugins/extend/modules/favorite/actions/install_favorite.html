@@ -1,17 +1,10 @@
 <#include "../../../actions/create_extender_from_resource.html">
-<a data-toggle="dropdown" href="#">
-	<i class="fa fa-star">&nbsp;</i>&nbsp;#i18n{module.extend.favorite.extender.label}   			
-</a>
-<ul class="dropdown-menu submenu-left">
-	<li>
-		<div class="form-inline">
-			<#assign installed = false>
-			<#assign unremovable = false>
-			<#if extenderTypesInstalled.favorite??>
-				<#assign installed = true>
-				<#assign unremovable = extenderTypesInstalled.favorite>
-			</#if>
-			<@createExtenderFromResource extenderType="favorite" installed=installed unremovable=unremovable labelAdd="#i18n{module.extend.favorite.create_extender_from_resource.labelAddExtender}" labelRemove="#i18n{module.extend.favorite.create_extender_from_resource.labelRemoveExtender}" />
-		</div>
-	</li>
-</ul>
+<#assign installed = false>
+<#assign unremovable = false>
+<#if extenderTypesInstalled.favorite??>
+<#assign installed = true>
+<#assign unremovable = extenderTypesInstalled.favorite>
+</#if>
+<@createExtenderFromResource extenderType="favorite" installed=installed unremovable=unremovable labelAdd="#i18n{module.extend.favorite.create_extender_from_resource.labelAddExtender}" labelRemove="#i18n{module.extend.favorite.create_extender_from_resource.labelRemoveExtender}">
+	<@span><@icon style='tags' /> #i18n{module.extend.favorite.extender.label}</@span> 
+</@createExtenderFromResource>
