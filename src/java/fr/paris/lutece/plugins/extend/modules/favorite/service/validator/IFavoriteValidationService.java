@@ -35,7 +35,7 @@ package fr.paris.lutece.plugins.extend.modules.favorite.service.validator;
 
 import fr.paris.lutece.portal.service.security.LuteceUser;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Interface of favorite validation services

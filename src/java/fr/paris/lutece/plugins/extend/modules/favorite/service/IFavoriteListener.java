@@ -33,9 +33,7 @@
  */
 package fr.paris.lutece.plugins.extend.modules.favorite.service;
 
-import java.util.Date;
-
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 import fr.paris.lutece.portal.service.security.LuteceUser;
 
@@ -72,13 +70,15 @@ public interface IFavoriteListener
     void cancelFavorite( String strExtendableResourceType, String strIdExtendableResource, HttpServletRequest request );
 
     /**
-     * Can Favorite
-     * 
-     * @param startDate
-     *            the start date
-     * @param endDate
-     *            the end date
-     * @return boolean if can Favorite
+     * Tells whether the user may add or remove a favorite on the resource.
+     *
+     * @param strExtendableResourceType
+     *            the extendable resource type
+     * @param strIdExtendableResource
+     *            the extendable resource id
+     * @param user
+     *            the user, null when unknown
+     * @return true when the favorite is allowed
      */
     boolean canFavorite( String strExtendableResourceType, String strIdExtendableResource, LuteceUser user );
 }

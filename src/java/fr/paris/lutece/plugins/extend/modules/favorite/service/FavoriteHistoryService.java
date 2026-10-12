@@ -36,13 +36,18 @@ package fr.paris.lutece.plugins.extend.modules.favorite.service;
 import fr.paris.lutece.plugins.extend.modules.favorite.business.FavoriteHistory;
 import fr.paris.lutece.plugins.extend.modules.favorite.business.IFavoriteHistoryDAO;
 
-import javax.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.transaction.Transactional;
 
 /**
  *
  * favoriteService
  *
  */
+@ApplicationScoped
+@Named( FavoriteHistoryService.BEAN_SERVICE )
 public class FavoriteHistoryService implements IFavoriteHistoryService
 {
     /** The Constant BEAN_SERVICE. */
@@ -51,26 +56,29 @@ public class FavoriteHistoryService implements IFavoriteHistoryService
     private IFavoriteHistoryDAO _favoriteHistoryDAO;
 
     @Override
+    @Transactional
     public void remove( int nId )
     {
-        _favoriteHistoryDAO.remove( nId, FavoritePlugin.getPlugin( ) );
+        _favoriteHistoryDAO.remove( nId, FavoriteService.getPlugin( ) );
     }
 
     @Override
+    @Transactional
     public void removeByResource( String strIdExtendableResource, String strExtendableResourceType )
     {
-        _favoriteHistoryDAO.removeByResource( strIdExtendableResource, strExtendableResourceType, FavoritePlugin.getPlugin( ) );
+        _favoriteHistoryDAO.removeByResource( strIdExtendableResource, strExtendableResourceType, FavoriteService.getPlugin( ) );
     }
 
     @Override
+    @Transactional
     public void create( FavoriteHistory favoriteHistory )
     {
-        _favoriteHistoryDAO.create( favoriteHistory, FavoritePlugin.getPlugin( ) );
+        _favoriteHistoryDAO.create( favoriteHistory, FavoriteService.getPlugin( ) );
     }
 
     @Override
     public FavoriteHistory findByHistoryExtenderId( long lIdHistoryExtenderId )
     {
-        return _favoriteHistoryDAO.findByHistoryExtenderId( lIdHistoryExtenderId, FavoritePlugin.getPlugin( ) );
+        return _favoriteHistoryDAO.findByHistoryExtenderId( lIdHistoryExtenderId, FavoriteService.getPlugin( ) );
     }
 }

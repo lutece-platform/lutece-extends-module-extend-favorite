@@ -34,26 +34,48 @@
 package fr.paris.lutece.plugins.extend.modules.favorite.service.extender;
 
 import fr.paris.lutece.plugins.extend.business.extender.ResourceExtenderDTO;
-import fr.paris.lutece.plugins.extend.modules.favorite.service.FavoriteService;
-import fr.paris.lutece.plugins.extend.modules.favorite.service.IFavoriteService;
+import fr.paris.lutece.plugins.extend.modules.favorite.web.component.FavoriteResourceExtenderComponent;
 import fr.paris.lutece.plugins.extend.service.extender.AbstractResourceExtender;
 
 import org.apache.commons.lang3.StringUtils;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * FavoriteResourceExtender
  */
+@ApplicationScoped
+@Named( FavoriteResourceExtender.BEAN_NAME )
 public class FavoriteResourceExtender extends AbstractResourceExtender
 {
     /** The Constant RESOURCE_EXTENDER. */
     public static final String RESOURCE_EXTENDER = "favorite";
+
+    /** The bean name. */
+    public static final String BEAN_NAME = "extendfavorite.favoriteResourceExtender";
+
+    private static final String PROPERTY_TITLE_KEY = "module.extend.favorite.extender.label";
+
     @Inject
-    @Named( FavoriteService.BEAN_SERVICE )
-    private IFavoriteService _favoriteService;
+    private FavoriteResourceExtenderComponent _resourceExtenderComponent;
+
+    /**
+     * Sets the key, the title and the options of the extender.
+     */
+    @PostConstruct
+    void init( )
+    {
+        setKey( RESOURCE_EXTENDER );
+        setI18nTitleKey( PROPERTY_TITLE_KEY );
+        setConfigRequired( false );
+        setHistoryEnable( true );
+        setStateEnable( true );
+        setResourceExtenderComponent( _resourceExtenderComponent );
+    }
 
     /**
      * {@inheritDoc}

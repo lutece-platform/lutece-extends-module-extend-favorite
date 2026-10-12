@@ -42,14 +42,18 @@ import fr.paris.lutece.portal.web.resource.IExtendableResourcePluginAction;
 
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  *
  * FeedbackInstallerPluginAction
  *
  */
+@ApplicationScoped
+@Named( "extendfavorite.favoriteInstallerAction" )
 public class FavoriteInstallerPluginAction extends AbstractPluginAction<IExtendableResource> implements IExtendableResourcePluginAction
 {
     private static final String ACTION_NAME = "Favorite";

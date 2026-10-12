@@ -39,28 +39,34 @@ import fr.paris.lutece.plugins.extend.modules.favorite.business.Favorite;
 import fr.paris.lutece.plugins.extend.modules.favorite.business.FavoriteFilter;
 import fr.paris.lutece.plugins.extend.modules.favorite.business.FavoriteHistory;
 import fr.paris.lutece.plugins.extend.modules.favorite.business.IFavoriteDAO;
-import fr.paris.lutece.plugins.extend.modules.favorite.service.FavoriteListenerService;
 import fr.paris.lutece.plugins.extend.modules.favorite.service.extender.FavoriteResourceExtender;
 import fr.paris.lutece.plugins.extend.service.extender.history.IResourceExtenderHistoryService;
+import fr.paris.lutece.portal.service.plugin.Plugin;
+import fr.paris.lutece.portal.service.plugin.PluginService;
 import fr.paris.lutece.portal.service.security.LuteceUser;
-
-import org.apache.commons.collections.CollectionUtils;
-import org.springframework.transaction.annotation.Transactional;
+import fr.paris.lutece.portal.service.security.SecurityService;
 
 import java.util.List;
 
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 
 /**
- *
- * favoriteService
- *
+ * Favorites of the extendable resources: counter per resource and history per user.
  */
+@ApplicationScoped
+@Named( FavoriteService.BEAN_SERVICE )
 public class FavoriteService implements IFavoriteService
 {
     /** The Constant BEAN_SERVICE. */
     public static final String BEAN_SERVICE = "extendfavorite.favoriteService";
+
+    /** The plugin name. */
+    public static final String PLUGIN_NAME = "extendfavorite";
+
     @Inject
     private IFavoriteDAO _favoriteDAO;
     @Inject
@@ -69,35 +75,44 @@ public class FavoriteService implements IFavoriteService
     private IFavoriteHistoryService _favoriteHistoryService;
 
     /**
+     * Gives the plugin of the module.
+     *
+     * @return the plugin
+     */
+    public static Plugin getPlugin( )
+    {
+        return PluginService.getPlugin( PLUGIN_NAME );
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
+    @Transactional
     public void create( Favorite favorite )
     {
-        _favoriteDAO.insert( favorite, FavoritePlugin.getPlugin( ) );
+        _favoriteDAO.insert( favorite, getPlugin( ) );
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
+    @Transactional
     public void update( Favorite favorite )
     {
-        _favoriteDAO.store( favorite, FavoritePlugin.getPlugin( ) );
+        _favoriteDAO.store( favorite, getPlugin( ) );
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
+    @Transactional
     public synchronized void doFavorite( String strIdExtendableResource, String strExtendableResourceType, int nVoteValue, HttpServletRequest request )
     {
         Favorite favorite = findByResource( strIdExtendableResource, strExtendableResourceType );
 
-        // Create the favorite if not exists
         if ( favorite == null )
         {
             favorite = new Favorite( );
@@ -112,23 +127,23 @@ public class FavoriteService implements IFavoriteService
             update( favorite );
         }
 
+        LuteceUser user = SecurityService.isAuthenticationEnable( ) ? SecurityService.getInstance( ).getRegisteredUser( request ) : null;
         ResourceExtenderHistory history = _resourceExtenderHistoryService.create( FavoriteResourceExtender.RESOURCE_EXTENDER, strIdExtendableResource,
-                strExtendableResourceType, request );
+                strExtendableResourceType, ( user != null ) ? user.getName( ) : null, request.getRemoteAddr( ) );
 
         FavoriteHistory favoriteHistory = new FavoriteHistory( );
         favoriteHistory.setIdExtenderHistory( history.getIdHistory( ) );
         favoriteHistory.setFavoriteValue( nVoteValue );
         _favoriteHistoryService.create( favoriteHistory );
-        // Call Listener
-        FavoriteListenerService.favorite( strExtendableResourceType, strIdExtendableResource, request );
 
+        FavoriteListenerService.favorite( strExtendableResourceType, strIdExtendableResource, request );
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
+    @Transactional
     public synchronized void doCancelFavorite( LuteceUser user, String strIdExtendableResource, String strExtendableResourceType, HttpServletRequest request )
     {
         ResourceExtenderHistoryFilter resourceExtenderHistoryFilter = new ResourceExtenderHistoryFilter( );
@@ -139,26 +154,26 @@ public class FavoriteService implements IFavoriteService
 
         List<ResourceExtenderHistory> histories = _resourceExtenderHistoryService.findByFilter( resourceExtenderHistoryFilter );
 
-        if ( CollectionUtils.isNotEmpty( histories ) )
+        for ( ResourceExtenderHistory history : histories )
         {
-            for ( ResourceExtenderHistory history : histories )
+            FavoriteHistory favoriteHistory = _favoriteHistoryService.findByHistoryExtenderId( history.getIdHistory( ) );
+
+            if ( favoriteHistory != null )
             {
-                FavoriteHistory favoriteHistory = _favoriteHistoryService.findByHistoryExtenderId( history.getIdHistory( ) );
+                _favoriteHistoryService.remove( favoriteHistory.getIdFavoriteHistory( ) );
 
-                if ( favoriteHistory != null )
+                Favorite favorite = findByResource( strIdExtendableResource, strExtendableResourceType );
+
+                if ( favorite != null && favorite.getFavoriteCount( ) > 0 )
                 {
-                    _favoriteHistoryService.remove( favoriteHistory.getIdFavoriteHistory( ) );
-
-                    Favorite favorite = findByResource( strIdExtendableResource, strExtendableResourceType );
                     favorite.setFavoriteCount( favorite.getFavoriteCount( ) - 1 );
                     update( favorite );
-                    // Call Listener
-                    FavoriteListenerService.cancelFavorite( strExtendableResourceType, strIdExtendableResource, request );
-
                 }
 
-                _resourceExtenderHistoryService.remove( Integer.valueOf( "" + history.getIdHistory( ) ) );
+                FavoriteListenerService.cancelFavorite( strExtendableResourceType, strIdExtendableResource, request );
             }
+
+            _resourceExtenderHistoryService.remove( history.getIdHistory( ) );
         }
     }
 
@@ -166,23 +181,21 @@ public class FavoriteService implements IFavoriteService
      * {@inheritDoc}
      */
     @Override
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
+    @Transactional
     public void remove( int nIdFavorite )
     {
-        _favoriteDAO.delete( nIdFavorite, FavoritePlugin.getPlugin( ) );
+        _favoriteDAO.delete( nIdFavorite, getPlugin( ) );
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
+    @Transactional
     public void removeByResource( String strIdExtendableResource, String strExtendableResourceType )
     {
-        _favoriteDAO.deleteByResource( strIdExtendableResource, strExtendableResourceType, FavoritePlugin.getPlugin( ) );
+        _favoriteDAO.deleteByResource( strIdExtendableResource, strExtendableResourceType, getPlugin( ) );
     }
-
-    // GET
 
     /**
      * {@inheritDoc}
@@ -190,7 +203,7 @@ public class FavoriteService implements IFavoriteService
     @Override
     public Favorite findByPrimaryKey( int nIdFavorite )
     {
-        return _favoriteDAO.load( nIdFavorite, FavoritePlugin.getPlugin( ) );
+        return _favoriteDAO.load( nIdFavorite, getPlugin( ) );
     }
 
     /**
@@ -199,7 +212,7 @@ public class FavoriteService implements IFavoriteService
     @Override
     public Favorite findByResource( String strIdExtendableResource, String strExtendableResourceType )
     {
-        return _favoriteDAO.loadByResource( strIdExtendableResource, strExtendableResourceType, FavoritePlugin.getPlugin( ) );
+        return _favoriteDAO.loadByResource( strIdExtendableResource, strExtendableResourceType, getPlugin( ) );
     }
 
     /**
@@ -208,6 +221,6 @@ public class FavoriteService implements IFavoriteService
     @Override
     public List<Favorite> findByFilter( FavoriteFilter filter )
     {
-        return _favoriteDAO.loadByFilter( filter, FavoritePlugin.getPlugin( ) );
+        return _favoriteDAO.loadByFilter( filter, getPlugin( ) );
     }
 }

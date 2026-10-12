@@ -35,51 +35,67 @@ package fr.paris.lutece.plugins.extend.modules.favorite.web.component;
 
 import fr.paris.lutece.plugins.extend.business.extender.ResourceExtenderDTO;
 import fr.paris.lutece.plugins.extend.business.extender.config.IExtenderConfig;
-import fr.paris.lutece.plugins.extend.business.extender.history.ResourceExtenderHistory;
 import fr.paris.lutece.plugins.extend.business.extender.history.ResourceExtenderHistoryFilter;
-import fr.paris.lutece.plugins.extend.modules.favorite.business.Favorite;
-import fr.paris.lutece.plugins.extend.modules.favorite.business.FavoriteFilter;
+import fr.paris.lutece.plugins.extend.modules.favorite.service.FavoriteService;
 import fr.paris.lutece.plugins.extend.modules.favorite.service.IFavoriteService;
 import fr.paris.lutece.plugins.extend.modules.favorite.service.extender.FavoriteResourceExtender;
 import fr.paris.lutece.plugins.extend.modules.favorite.util.constants.FavoriteConstants;
+import fr.paris.lutece.plugins.extend.service.extender.IResourceExtender;
 import fr.paris.lutece.plugins.extend.service.extender.history.IResourceExtenderHistoryService;
 import fr.paris.lutece.plugins.extend.util.ExtendErrorException;
 import fr.paris.lutece.plugins.extend.util.JSONUtils;
 import fr.paris.lutece.plugins.extend.web.component.AbstractResourceExtenderComponent;
+import fr.paris.lutece.portal.service.security.ISecurityTokenService;
 import fr.paris.lutece.portal.service.security.LuteceUser;
 import fr.paris.lutece.portal.service.security.SecurityService;
 import fr.paris.lutece.portal.service.template.AppTemplateService;
 import fr.paris.lutece.portal.service.template.DatabaseTemplateService;
 import fr.paris.lutece.portal.service.util.AppLogService;
-import fr.paris.lutece.util.html.HtmlTemplate;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
- *
- * FavoriteResourceExtenderComponent
- *
+ * Renders the favorite add-on of a resource in the front office and its summary in the back office.
  */
+@ApplicationScoped
 public class FavoriteResourceExtenderComponent extends AbstractResourceExtenderComponent
 {
-    // TEMPLATES
     private static final String TEMPLATE_FAVORITE = "skin/plugins/extend/modules/favorite/favorite.html";
     private static final String TEMPLATE_FAVORITE_INFO = "admin/plugins/extend/modules/favorite/favorite_info.html";
+
     @Inject
+    @Named( FavoriteService.BEAN_SERVICE )
     private IFavoriteService _favoriteService;
+
     @Inject
     private IResourceExtenderHistoryService _resourceExtenderHistoryService;
+
+    @Inject
+    @Named( FavoriteResourceExtender.BEAN_NAME )
+    private IResourceExtender _resourceExtender;
+
+    @Inject
+    private ISecurityTokenService _securityTokenService;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public IResourceExtender getResourceExtender( )
+    {
+        return _resourceExtender;
+    }
 
     /**
      * {@inheritDoc}
@@ -93,39 +109,38 @@ public class FavoriteResourceExtenderComponent extends AbstractResourceExtenderC
     /**
      * {@inheritDoc}
      */
-    @SuppressWarnings( "deprecation" )
     @Override
     public String getPageAddOn( String strIdExtendableResource, String strExtendableResourceType, String strParameters, HttpServletRequest request )
     {
-        LuteceUser user = SecurityService.getInstance( ).getRegisteredUser( request );
-
-        Favorite favorite = _favoriteService.findByResource( strIdExtendableResource, strExtendableResourceType );
+        LuteceUser user = SecurityService.isAuthenticationEnable( ) ? SecurityService.getInstance( ).getRegisteredUser( request ) : null;
         String strTemplateContent = DatabaseTemplateService.getTemplateFromKey( FavoriteConstants.MARK_EXTEND_FAVORITE );
 
-        Map<String, Object> model = new HashMap<String, Object>( );
-        model.put( FavoriteConstants.MARK_FAVORITE, favorite );
+        Map<String, Object> model = new HashMap<>( );
+        model.put( FavoriteConstants.MARK_FAVORITE, _favoriteService.findByResource( strIdExtendableResource, strExtendableResourceType ) );
         model.put( FavoriteConstants.MARK_ID_EXTENDABLE_RESOURCE, strIdExtendableResource );
         model.put( FavoriteConstants.MARK_EXTENDABLE_RESOURCE_TYPE, strExtendableResourceType );
         model.put( FavoriteConstants.MARK_SHOW, fetchShowParameter( strParameters ) );
+        model.put( FavoriteConstants.MARK_CAN_FAVORITE, user != null );
+        model.put( FavoriteConstants.MARK_FAVORITE_CLOSED, user == null );
+        boolean bCanDelete = user != null && isFavoriteer( user, strIdExtendableResource, strExtendableResourceType );
+        model.put( FavoriteConstants.MARK_CAN_DELETE_FAVORITE, bCanDelete );
 
-        if ( user != null )
+        if ( bCanDelete )
         {
-            model.put( FavoriteConstants.MARK_CAN_FAVORITE, true );
-            model.put( FavoriteConstants.MARK_FAVORITE_CLOSED, false );
-            model.put( FavoriteConstants.MARK_CAN_DELETE_FAVORITE, isFavoriteer( user, strIdExtendableResource, strExtendableResourceType ) );
+            model.put( FavoriteConstants.MARK_CANCEL_FAVORITE_TOKEN, _securityTokenService.getToken( request, FavoriteConstants.ACTION_CANCEL_FAVORITE ) );
         }
-        else
+        else if ( user != null )
         {
-            model.put( FavoriteConstants.MARK_CAN_FAVORITE, false );
-            model.put( FavoriteConstants.MARK_FAVORITE_CLOSED, true );
+            model.put( FavoriteConstants.MARK_FAVORITE_TOKEN, _securityTokenService.getToken( request, FavoriteConstants.ACTION_DO_FAVORITE ) );
         }
 
-        model.put( FavoriteConstants.MARK_FAVORITE_HTML_CONTENT,
-                AppTemplateService.getTemplateFromStringFtl( strTemplateContent, request.getLocale( ), model ).getHtml( ) );
+        if ( strTemplateContent != null )
+        {
+            model.put( FavoriteConstants.MARK_FAVORITE_HTML_CONTENT,
+                    AppTemplateService.getTemplateFromStringFtl( strTemplateContent, request.getLocale( ), model ).getHtml( ) );
+        }
 
-        HtmlTemplate template = AppTemplateService.getTemplate( TEMPLATE_FAVORITE, request.getLocale( ), model );
-
-        return template.getHtml( );
+        return AppTemplateService.getTemplate( TEMPLATE_FAVORITE, request.getLocale( ), model ).getHtml( );
     }
 
     /**
@@ -134,28 +149,53 @@ public class FavoriteResourceExtenderComponent extends AbstractResourceExtenderC
     @Override
     public String getInfoHtml( ResourceExtenderDTO resourceExtender, Locale locale, HttpServletRequest request )
     {
-        if ( resourceExtender != null )
+        if ( resourceExtender == null )
         {
-            Map<String, Object> model = new HashMap<String, Object>( );
-            model.put( FavoriteConstants.MARK_FAVORITE,
-                    _favoriteService.findByResource( resourceExtender.getIdExtendableResource( ), resourceExtender.getExtendableResourceType( ) ) );
-
-            HtmlTemplate template = AppTemplateService.getTemplate( TEMPLATE_FAVORITE_INFO, request.getLocale( ), model );
-
-            return template.getHtml( );
+            return StringUtils.EMPTY;
         }
 
-        return StringUtils.EMPTY;
+        Map<String, Object> model = new HashMap<>( );
+        model.put( FavoriteConstants.MARK_FAVORITE,
+                _favoriteService.findByResource( resourceExtender.getIdExtendableResource( ), resourceExtender.getExtendableResourceType( ) ) );
+
+        return AppTemplateService.getTemplate( TEMPLATE_FAVORITE_INFO, locale, model ).getHtml( );
     }
 
     /**
-     * Fetch show parameter.
+     * {@inheritDoc}
+     */
+    @Override
+    public String getConfigHtml( ResourceExtenderDTO resourceExtender, Locale locale, HttpServletRequest request )
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public IExtenderConfig getConfig( int nIdExtender )
+    {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void doSaveConfig( HttpServletRequest request, IExtenderConfig config ) throws ExtendErrorException
+    {
+        // No configuration
+    }
+
+    /**
+     * Reads the show parameter of the extender parameters.
      *
      * @param strParameters
-     *            the str parameters
-     * @return the string
+     *            the extender parameters, in JSON
+     * @return the show parameter, or an empty string
      */
-    private String fetchShowParameter( String strParameters )
+    private static String fetchShowParameter( String strParameters )
     {
         String strShowParameter = StringUtils.EMPTY;
         ObjectNode jsonParameters = JSONUtils.parseParameters( strParameters );
@@ -168,7 +208,7 @@ public class FavoriteResourceExtenderComponent extends AbstractResourceExtenderC
             }
             else
             {
-                AppLogService.debug( "No " + FavoriteConstants.JSON_KEY_SHOW + " found in " + jsonParameters );
+                AppLogService.debug( "No {} found in {}", FavoriteConstants.JSON_KEY_SHOW, jsonParameters );
             }
         }
 
@@ -176,48 +216,24 @@ public class FavoriteResourceExtenderComponent extends AbstractResourceExtenderC
     }
 
     /**
+     * Tells whether the user has the resource in his favorites.
      *
      * @param user
-     *            the User
+     *            the user
      * @param strIdExtendableResource
-     *            the IdExtendableResource
+     *            the resource id
      * @param strExtendableResourceType
-     *            the ExtendableResourceType
-     * @return if the user is a favoriteer
+     *            the resource type
+     * @return true when a favorite of the user exists
      */
     private boolean isFavoriteer( LuteceUser user, String strIdExtendableResource, String strExtendableResourceType )
     {
-        boolean res = false;
         ResourceExtenderHistoryFilter filter = new ResourceExtenderHistoryFilter( );
-
         filter.setExtenderType( FavoriteResourceExtender.RESOURCE_EXTENDER );
         filter.setExtendableResourceType( strExtendableResourceType );
         filter.setIdExtendableResource( strIdExtendableResource );
         filter.setUserGuid( user.getName( ) );
-        filter.setAscSort( false );
-        filter.setSortedAttributeName( FavoriteConstants.ORDER_BY_DATE_CREATION );
 
-        List<ResourceExtenderHistory> listHistories = _resourceExtenderHistoryService.findByFilter( filter );
-
-        res = CollectionUtils.isNotEmpty( listHistories );
-
-        return res;
-    }
-
-    @Override
-    public String getConfigHtml( ResourceExtenderDTO resourceExtender, Locale locale, HttpServletRequest request )
-    {
-        return null;
-    }
-
-    @Override
-    public IExtenderConfig getConfig( int nIdExtender )
-    {
-        return null;
-    }
-
-    @Override
-    public void doSaveConfig( HttpServletRequest request, IExtenderConfig config ) throws ExtendErrorException
-    {
+        return !_resourceExtenderHistoryService.findByFilter( filter ).isEmpty( );
     }
 }

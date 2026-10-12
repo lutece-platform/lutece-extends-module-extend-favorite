@@ -35,7 +35,6 @@ package fr.paris.lutece.plugins.extend.modules.favorite.service;
 
 import fr.paris.lutece.plugins.extend.modules.favorite.business.FavoriteHistory;
 
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * IFavoriteService.
@@ -48,7 +47,6 @@ public interface IFavoriteHistoryService
      * @param nId
      *            the n id Favorite
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void remove( int nId );
 
     /**
@@ -59,7 +57,6 @@ public interface IFavoriteHistoryService
      * @param strExtendableResourceType
      *            the str extendable resource type
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void removeByResource( String strIdExtendableResource, String strExtendableResourceType );
 
     /**
@@ -68,7 +65,6 @@ public interface IFavoriteHistoryService
      * @param favoriteHistory
      *            the FavoriteHistory
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void create( FavoriteHistory favoriteHistory );
 
     /**
@@ -78,6 +74,5 @@ public interface IFavoriteHistoryService
      *            the extender id
      * @return the corresponding {@link FavoriteHistory}
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     FavoriteHistory findByHistoryExtenderId( long lIdHistoryExtenderId );
 }

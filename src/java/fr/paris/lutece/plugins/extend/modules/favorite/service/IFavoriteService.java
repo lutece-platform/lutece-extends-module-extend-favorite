@@ -37,11 +37,10 @@ import fr.paris.lutece.plugins.extend.modules.favorite.business.Favorite;
 import fr.paris.lutece.plugins.extend.modules.favorite.business.FavoriteFilter;
 import fr.paris.lutece.portal.service.security.LuteceUser;
 
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * IFavoriteService.
@@ -54,7 +53,6 @@ public interface IFavoriteService
      * @param nIdFavorite
      *            the nId favorite
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void remove( int nIdFavorite );
 
     /**
@@ -65,7 +63,6 @@ public interface IFavoriteService
      * @param strExtendableResourceType
      *            the str extendable resource type
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void removeByResource( String strIdExtendableResource, String strExtendableResourceType );
 
     /**
@@ -74,7 +71,6 @@ public interface IFavoriteService
      * @param favorite
      *            the favorite
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void create( Favorite favorite );
 
     /**
@@ -83,7 +79,6 @@ public interface IFavoriteService
      * @param favorite
      *            the favorite
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void update( Favorite favorite );
 
     /**
@@ -98,7 +93,6 @@ public interface IFavoriteService
      * @param request
      *            the request
      */
-    @Transactional( FavoritePlugin.TRANSACTION_MANAGER )
     void doFavorite( String strIdExtendableResource, String strExtendableResourceType, int nVoteValue, HttpServletRequest request );
 
     /**

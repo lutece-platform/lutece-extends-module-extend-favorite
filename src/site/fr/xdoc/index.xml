@@ -11,13 +11,19 @@
             </p>
             -->
             <subsection name="Introduction">
-                <p></p>
+                <p>Ajoute un compteur de favoris à toute ressource extensible : un utilisateur connecté ajoute la ressource à ses favoris ou l'en retire.</p>
             </subsection>
             <subsection name="Configuration">
-                <p></p>
+                <p>Le rendu est le template en base <code>extend_favorite</code> (templates du core). Ses formulaires postent vers
+                <code>jsp/site/Portal.jsp?page=extendfavorite&amp;action=doFavorite</code> ou <code>action=doCancelFavorite</code>
+                avec les champs <code>idExtendableResource</code>, <code>extendableResourceType</code>, <code>favoriteValue</code> (ajout seulement)
+                et <code>_csrftoken</code>, de valeur <code>${favoriteToken}</code> ou <code>${cancelFavoriteToken}</code>.</p>
+                <p>La version 2.0.0 supprime <code>DoFavorite.jsp</code> et <code>DoCancelFavorite.jsp</code> : la mise à jour remplace par le
+                template par défaut tout template <code>extend_favorite</code> qui pointe encore vers elles. Un site qui avait personnalisé ce
+                template reporte sa personnalisation sur les formulaires ci-dessus.</p>
             </subsection>
             <subsection name="Usage">
-                <p></p>
+                <p>Marqueur dans une page : <code>@Extender[&lt;id&gt;,&lt;type&gt;,favorite,{"show":"all"}]@</code>.</p>
             </subsection>
         </section>
     </body>
