@@ -5,6 +5,6 @@
 <#assign installed = true>
 <#assign unremovable = extenderTypesInstalled.favorite>
 </#if>
-<@createExtenderFromResource extenderType="favorite" installed=installed unremovable=unremovable labelAdd="#i18n{module.extend.favorite.create_extender_from_resource.labelAddExtender}" labelRemove="#i18n{module.extend.favorite.create_extender_from_resource.labelRemoveExtender}">
-	<@span><@icon style='tags' /> #i18n{module.extend.favorite.extender.label}</@span> 
+<@createExtenderFromResource extenderType="favorite" installed=installed unremovable=unremovable labelAdd="#i18n{module.extend.favorite.create_extender_from_resource.labelAddExtender}" labelRemove="#i18n{module.extend.favorite.create_extender_from_resource.labelRemoveExtender}" target="preview">
+	<@span><@icon style='heart' /> #i18n{module.extend.favorite.extender.label}</@span> 
 </@createExtenderFromResource>

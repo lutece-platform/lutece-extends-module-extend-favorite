@@ -11,13 +11,19 @@
             </p>
             -->
             <subsection name="Introduction">
-                <p></p>
+                <p>Adds a favorite counter to any extendable resource: a signed-in user adds the resource to his favorites or removes it.</p>
             </subsection>
             <subsection name="Configuration">
-                <p></p>
+                <p>The rendering is the database template <code>extend_favorite</code> (core templates). Its forms post to
+                <code>jsp/site/Portal.jsp?page=extendfavorite&amp;action=doFavorite</code> or <code>action=doCancelFavorite</code>
+                with the fields <code>idExtendableResource</code>, <code>extendableResourceType</code>, <code>favoriteValue</code> (add only)
+                and <code>_csrftoken</code>, whose value is <code>${favoriteToken}</code> or <code>${cancelFavoriteToken}</code>.</p>
+                <p>Version 2.0.0 removes <code>DoFavorite.jsp</code> and <code>DoCancelFavorite.jsp</code>: the upgrade rewrites any
+                <code>extend_favorite</code> template still linking to them with the default one. A site that customised this template ports
+                its customisation to the forms above.</p>
             </subsection>
             <subsection name="Usage">
-                <p></p>
+                <p>Marker in a page: <code>@Extender[&lt;id&gt;,&lt;type&gt;,favorite,{"show":"all"}]@</code>.</p>
             </subsection>
         </section>
     </body>

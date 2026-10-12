@@ -39,13 +39,15 @@ import fr.paris.lutece.util.xml.XmlUtil;
 
 import java.util.Map;
 
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Manager for add on display TODO : move this class into a document specific class !
  */
+@ApplicationScoped
 public class FavoriteAddOnService implements IResourceDisplayManager
 {
     public static final String PROPERTY_RESOURCE_TYPE = "document";

@@ -33,40 +33,41 @@
  */
 package fr.paris.lutece.plugins.extend.modules.favorite.service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
-import fr.paris.lutece.plugins.extend.modules.favorite.service.IFavoriteListener;
 import fr.paris.lutece.portal.service.security.LuteceUser;
 
-public class FavoriteListenerService
+/**
+ * Registry of the favorite listeners, filled by the plugins that react to the favorites.
+ */
+public final class FavoriteListenerService
 {
-
-    private static Map<String, List<IFavoriteListener>> _mapListeners = new HashMap<String, List<IFavoriteListener>>( );
-    private static boolean _bHasListeners;
+    private static final Map<String, List<IFavoriteListener>> _mapListeners = new ConcurrentHashMap<>( );
+    private static volatile boolean _bHasListeners;
 
     /**
-     * Register a comment listener.
+     * Private constructor: static registry.
+     */
+    private FavoriteListenerService( )
+    {
+    }
+
+    /**
+     * Register a favorite listener.
      * 
      * @param strExtendableResourceType
-     *            The extendable resource type associated with the listener. Use {@link #CONSTANT_EVERY_EXTENDABLE_RESOURCE_TYPE} to associated the listener
-     *            with every resource type.
+     *            The extendable resource type associated with the listener. 
      * @param listener
      *            The listener to register
      */
-    public static synchronized void registerListener( String strExtendableResourceType, IFavoriteListener listener )
+    public static void registerListener( String strExtendableResourceType, IFavoriteListener listener )
     {
-        List<IFavoriteListener> listListeners = _mapListeners.get( strExtendableResourceType );
-        if ( listListeners == null )
-        {
-            listListeners = new ArrayList<IFavoriteListener>( );
-            _mapListeners.put( strExtendableResourceType, listListeners );
-        }
-        listListeners.add( listener );
+        _mapListeners.computeIfAbsent( strExtendableResourceType, k -> new CopyOnWriteArrayList<>( ) ).add( listener );
         _bHasListeners = true;
     }
 
@@ -126,18 +127,31 @@ public class FavoriteListenerService
 
     }
 
+    /**
+     * Tells whether the user may add or remove a favorite: every listener of the resource type must agree.
+     *
+     * @param strExtendableResourceType
+     *            the resource type
+     * @param strIdExtendableResource
+     *            the resource id
+     * @param user
+     *            the user
+     * @return true when no listener refuses
+     */
     public static boolean canFavorite( String strExtendableResourceType, String strIdExtendableResource, LuteceUser user )
     {
         List<IFavoriteListener> listListeners = _mapListeners.get( strExtendableResourceType );
-        boolean res = false;
         if ( listListeners != null )
         {
             for ( IFavoriteListener listener : listListeners )
             {
-                return listener.canFavorite( strExtendableResourceType, strIdExtendableResource, user );
+                if ( !listener.canFavorite( strExtendableResourceType, strIdExtendableResource, user ) )
+                {
+                    return false;
+                }
             }
         }
-        return res;
+        return true;
     }
 
 }

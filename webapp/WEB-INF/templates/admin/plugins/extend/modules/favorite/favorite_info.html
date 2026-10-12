@@ -1,3 +1,5 @@
 <#if favorite??>
 <@p><strong>#i18n{module.extend.favorite.extender.label} : </strong>${favorite.favoriteCount!}</@p>
+<#else>
+<@empty title='#i18n{module.extend.favorite.favorite_info.labelNoFavorite}' iconName='heart-off' subtitle=' ' />
 </#if>

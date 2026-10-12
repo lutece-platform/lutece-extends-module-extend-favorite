@@ -37,16 +37,19 @@ import fr.paris.lutece.plugins.extend.business.extender.ResourceExtenderDTOFilte
 import fr.paris.lutece.portal.service.plugin.Plugin;
 import fr.paris.lutece.util.sql.DAOUtil;
 
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+
+import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * This class provides Data Access methods for favorite objects.
  */
+@ApplicationScoped
 public class FavoriteDAO implements IFavoriteDAO
 {
-    private static final String SQL_QUERY_NEW_PK = " SELECT max( id_favorite ) FROM extend_favorite ";
-    private static final String SQL_QUERY_INSERT = " INSERT INTO extend_favorite ( id_favorite, id_resource, resource_type, favorite_count ) VALUES ( ?, ?, ?, ? ) ";
+    private static final String SQL_QUERY_INSERT = " INSERT INTO extend_favorite ( id_resource, resource_type, favorite_count ) VALUES ( ?, ?, ? ) ";
     private static final String SQL_QUERY_SELECT_ALL = " SELECT id_favorite, id_resource, resource_type, favorite_count FROM extend_favorite ";
     private static final String SQL_QUERY_SELECT = SQL_QUERY_SELECT_ALL + " WHERE id_favorite = ? ";
     private static final String SQL_QUERY_SELECT_BY_RESOURCE = SQL_QUERY_SELECT_ALL + " WHERE id_resource = ? AND resource_type = ? ";
@@ -56,48 +59,24 @@ public class FavoriteDAO implements IFavoriteDAO
     private static final String SQL_QUERY_UPDATE = " UPDATE extend_favorite SET id_resource = ?, resource_type = ?, favorite_count = ? WHERE id_favorite = ?  ";
 
     /**
-     * Generates a new primary key.
-     *
-     * @param plugin
-     *            the plugin
-     * @return The new primary key
-     */
-    private int newPrimaryKey( Plugin plugin )
-    {
-        DAOUtil daoUtil = new DAOUtil( SQL_QUERY_NEW_PK, plugin );
-        daoUtil.executeQuery( );
-
-        int nKey = 1;
-
-        if ( daoUtil.next( ) )
-        {
-            nKey = daoUtil.getInt( 1 ) + 1;
-        }
-
-        daoUtil.free( );
-
-        return nKey;
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
-    public synchronized void insert( Favorite favorite, Plugin plugin )
+    public void insert( Favorite favorite, Plugin plugin )
     {
-        int nNewPrimaryKey = newPrimaryKey( plugin );
-        DAOUtil daoUtil = new DAOUtil( SQL_QUERY_INSERT, plugin );
-        favorite.setIdFavorite( nNewPrimaryKey );
+        try ( DAOUtil daoUtil = new DAOUtil( SQL_QUERY_INSERT, Statement.RETURN_GENERATED_KEYS, plugin ) )
+        {
+            int nIndex = 1;
+            daoUtil.setString( nIndex++, favorite.getIdExtendableResource( ) );
+            daoUtil.setString( nIndex++, favorite.getExtendableResourceType( ) );
+            daoUtil.setInt( nIndex, favorite.getFavoriteCount( ) );
+            daoUtil.executeUpdate( );
 
-        int nIndex = 1;
-
-        daoUtil.setInt( nIndex++, favorite.getIdFavorite( ) );
-        daoUtil.setString( nIndex++, favorite.getIdExtendableResource( ) );
-        daoUtil.setString( nIndex++, favorite.getExtendableResourceType( ) );
-        daoUtil.setInt( nIndex, favorite.getFavoriteCount( ) );
-
-        daoUtil.executeUpdate( );
-        daoUtil.free( );
+            if ( daoUtil.nextGeneratedKey( ) )
+            {
+                favorite.setIdFavorite( daoUtil.getGeneratedKeyInt( 1 ) );
+            }
+        }
     }
 
     /**
@@ -106,25 +85,20 @@ public class FavoriteDAO implements IFavoriteDAO
     @Override
     public Favorite load( int nIdfavorite, Plugin plugin )
     {
-        DAOUtil daoUtil = new DAOUtil( SQL_QUERY_SELECT, plugin );
-        daoUtil.setInt( 1, nIdfavorite );
-        daoUtil.executeQuery( );
-
-        Favorite favorite = null;
-
-        if ( daoUtil.next( ) )
+        try ( DAOUtil daoUtil = new DAOUtil( SQL_QUERY_SELECT, plugin ) )
         {
-            int nIndex = 1;
-            favorite = new Favorite( );
-            favorite.setIdFavorite( daoUtil.getInt( nIndex++ ) );
-            favorite.setIdExtendableResource( daoUtil.getString( nIndex++ ) );
-            favorite.setExtendableResourceType( daoUtil.getString( nIndex++ ) );
-            favorite.setFavoriteCount( daoUtil.getInt( nIndex ) );
+            daoUtil.setInt( 1, nIdfavorite );
+            daoUtil.executeQuery( );
+
+            Favorite favorite = null;
+
+            if ( daoUtil.next( ) )
+            {
+                favorite = readFavorite( daoUtil );
+            }
+
+            return favorite;
         }
-
-        daoUtil.free( );
-
-        return favorite;
     }
 
     /**
@@ -133,11 +107,11 @@ public class FavoriteDAO implements IFavoriteDAO
     @Override
     public void delete( int nIdfavorite, Plugin plugin )
     {
-        DAOUtil daoUtil = new DAOUtil( SQL_QUERY_DELETE, plugin );
-        daoUtil.setInt( 1, nIdfavorite );
-
-        daoUtil.executeUpdate( );
-        daoUtil.free( );
+        try ( DAOUtil daoUtil = new DAOUtil( SQL_QUERY_DELETE, plugin ) )
+        {
+            daoUtil.setInt( 1, nIdfavorite );
+            daoUtil.executeUpdate( );
+        }
     }
 
     /**
@@ -146,24 +120,20 @@ public class FavoriteDAO implements IFavoriteDAO
     @Override
     public void deleteByResource( String strIdExtendableResource, String strExtendableResourceType, Plugin plugin )
     {
-        int nIndex = 1;
-        StringBuilder sbSql = new StringBuilder( SQL_QUERY_DELETE_BY_RESOURCE );
+        boolean bOneResource = !ResourceExtenderDTOFilter.WILDCARD_ID_RESOURCE.equals( strIdExtendableResource );
+        String strSql = bOneResource ? SQL_QUERY_DELETE_BY_RESOURCE + SQL_QUERY_FILTER_ID_RESOURCE : SQL_QUERY_DELETE_BY_RESOURCE;
 
-        if ( !ResourceExtenderDTOFilter.WILDCARD_ID_RESOURCE.equals( strIdExtendableResource ) )
+        try ( DAOUtil daoUtil = new DAOUtil( strSql, plugin ) )
         {
-            sbSql.append( SQL_QUERY_FILTER_ID_RESOURCE );
+            daoUtil.setString( 1, strExtendableResourceType );
+
+            if ( bOneResource )
+            {
+                daoUtil.setString( 2, strIdExtendableResource );
+            }
+
+            daoUtil.executeUpdate( );
         }
-
-        DAOUtil daoUtil = new DAOUtil( sbSql.toString( ), plugin );
-        daoUtil.setString( nIndex++, strExtendableResourceType );
-
-        if ( !ResourceExtenderDTOFilter.WILDCARD_ID_RESOURCE.equals( strIdExtendableResource ) )
-        {
-            daoUtil.setString( nIndex, strIdExtendableResource );
-        }
-
-        daoUtil.executeUpdate( );
-        daoUtil.free( );
     }
 
     /**
@@ -172,16 +142,15 @@ public class FavoriteDAO implements IFavoriteDAO
     @Override
     public void store( Favorite favorite, Plugin plugin )
     {
-        int nIndex = 1;
-        DAOUtil daoUtil = new DAOUtil( SQL_QUERY_UPDATE, plugin );
-        daoUtil.setString( nIndex++, favorite.getIdExtendableResource( ) );
-        daoUtil.setString( nIndex++, favorite.getExtendableResourceType( ) );
-        daoUtil.setInt( nIndex++, favorite.getFavoriteCount( ) );
-
-        daoUtil.setInt( nIndex, favorite.getIdFavorite( ) );
-
-        daoUtil.executeUpdate( );
-        daoUtil.free( );
+        try ( DAOUtil daoUtil = new DAOUtil( SQL_QUERY_UPDATE, plugin ) )
+        {
+            int nIndex = 1;
+            daoUtil.setString( nIndex++, favorite.getIdExtendableResource( ) );
+            daoUtil.setString( nIndex++, favorite.getExtendableResourceType( ) );
+            daoUtil.setInt( nIndex++, favorite.getFavoriteCount( ) );
+            daoUtil.setInt( nIndex, favorite.getIdFavorite( ) );
+            daoUtil.executeUpdate( );
+        }
     }
 
     /**
@@ -190,28 +159,21 @@ public class FavoriteDAO implements IFavoriteDAO
     @Override
     public Favorite loadByResource( String strIdExtendableResource, String strExtendableResourceType, Plugin plugin )
     {
-        Favorite favorite = null;
-
-        int nIndex = 1;
-        DAOUtil daoUtil = new DAOUtil( SQL_QUERY_SELECT_BY_RESOURCE, plugin );
-        daoUtil.setString( nIndex++, strIdExtendableResource );
-        daoUtil.setString( nIndex, strExtendableResourceType );
-        daoUtil.executeQuery( );
-
-        if ( daoUtil.next( ) )
+        try ( DAOUtil daoUtil = new DAOUtil( SQL_QUERY_SELECT_BY_RESOURCE, plugin ) )
         {
-            nIndex = 1;
+            daoUtil.setString( 1, strIdExtendableResource );
+            daoUtil.setString( 2, strExtendableResourceType );
+            daoUtil.executeQuery( );
 
-            favorite = new Favorite( );
-            favorite.setIdFavorite( daoUtil.getInt( nIndex++ ) );
-            favorite.setIdExtendableResource( daoUtil.getString( nIndex++ ) );
-            favorite.setExtendableResourceType( daoUtil.getString( nIndex++ ) );
-            favorite.setFavoriteCount( daoUtil.getInt( nIndex ) );
+            Favorite favorite = null;
+
+            if ( daoUtil.next( ) )
+            {
+                favorite = readFavorite( daoUtil );
+            }
+
+            return favorite;
         }
-
-        daoUtil.free( );
-
-        return favorite;
     }
 
     /**
@@ -220,25 +182,38 @@ public class FavoriteDAO implements IFavoriteDAO
     @Override
     public List<Favorite> loadByFilter( FavoriteFilter filter, Plugin plugin )
     {
-        List<Favorite> listFavorite = new ArrayList<Favorite>( );
-        DAOUtil daoUtil = new DAOUtil( filter.buildSQLQuery( SQL_QUERY_SELECT_ALL ), plugin );
-        filter.setFilterValues( daoUtil );
-        daoUtil.executeQuery( );
+        List<Favorite> listFavorite = new ArrayList<>( );
 
-        while ( daoUtil.next( ) )
+        try ( DAOUtil daoUtil = new DAOUtil( filter.buildSQLQuery( SQL_QUERY_SELECT_ALL ), plugin ) )
         {
-            int nIndex = 1;
-            Favorite favorite = new Favorite( );
-            favorite.setIdFavorite( daoUtil.getInt( nIndex++ ) );
-            favorite.setIdExtendableResource( daoUtil.getString( nIndex++ ) );
-            favorite.setExtendableResourceType( daoUtil.getString( nIndex++ ) );
-            favorite.setFavoriteCount( daoUtil.getInt( nIndex ) );
+            filter.setFilterValues( daoUtil );
+            daoUtil.executeQuery( );
 
-            listFavorite.add( favorite );
+            while ( daoUtil.next( ) )
+            {
+                listFavorite.add( readFavorite( daoUtil ) );
+            }
         }
 
-        daoUtil.free( );
-
         return listFavorite;
+    }
+
+    /**
+     * Reads the favorite of the current row.
+     *
+     * @param daoUtil
+     *            the DAOUtil positioned on a row
+     * @return the favorite
+     */
+    private static Favorite readFavorite( DAOUtil daoUtil )
+    {
+        int nIndex = 1;
+        Favorite favorite = new Favorite( );
+        favorite.setIdFavorite( daoUtil.getInt( nIndex++ ) );
+        favorite.setIdExtendableResource( daoUtil.getString( nIndex++ ) );
+        favorite.setExtendableResourceType( daoUtil.getString( nIndex++ ) );
+        favorite.setFavoriteCount( daoUtil.getInt( nIndex ) );
+
+        return favorite;
     }
 }

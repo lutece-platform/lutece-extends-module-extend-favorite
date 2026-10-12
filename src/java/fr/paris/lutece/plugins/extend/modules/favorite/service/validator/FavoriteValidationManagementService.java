@@ -34,11 +34,11 @@
 package fr.paris.lutece.plugins.extend.modules.favorite.service.validator;
 
 import fr.paris.lutece.portal.service.security.LuteceUser;
-import fr.paris.lutece.portal.service.spring.SpringContextService;
 
 import org.apache.commons.lang3.StringUtils;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.enterprise.inject.spi.CDI;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Service to manage favorite validation
@@ -62,7 +62,7 @@ public final class FavoriteValidationManagementService
      */
     public static String validateFavorite( HttpServletRequest request, LuteceUser user, String strIdResource, String strResourceTypeKey, int nVoteValue )
     {
-        for ( IFavoriteValidationService validationService : SpringContextService.getBeansOfType( IFavoriteValidationService.class ) )
+        for ( IFavoriteValidationService validationService : CDI.current( ).select( IFavoriteValidationService.class ) )
         {
             String strUrlError = validationService.validateFavorite( request, user, strIdResource, strResourceTypeKey, nVoteValue );
 
